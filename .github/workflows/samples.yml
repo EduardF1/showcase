@@ -1,0 +1,195 @@
+name: samples
+
+# Every sample in the catalogue must compile and do what its README says. One job per ecosystem;
+# each builds its sample and runs the tests that exercise the decision the sample describes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: samples-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PGHOST: localhost
+  PGPORT: "5432"
+  PGUSER: postgres
+
+jobs:
+  csharp:
+    name: C# (result-not-exception)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: samples/csharp/result-not-exception
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+      - name: Build sample
+        run: dotnet build ResultNotException.csproj
+      - name: Test
+        run: dotnet test tests/ResultNotException.Tests.csproj
+
+  java:
+    name: Java (read-model-apart-from-write)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16.4@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: samples/java/read-model-apart-from-write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: samples/java/read-model-apart-from-write/pom.xml
+      - name: Build and test
+        run: mvn -B -ntp verify
+
+  javascript:
+    name: JavaScript (fixed-window-rate-limit)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: samples/javascript/fixed-window-rate-limit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Syntax check
+        run: npm run check
+      - name: Test
+        run: npm test
+
+  typescript:
+    name: TypeScript (unknown-is-a-value)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: samples/typescript/unknown-is-a-value
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: samples/typescript/unknown-is-a-value/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck, build and test
+        run: npm test
+
+  php:
+    name: PHP (money-as-a-value-object)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: samples/php/money-as-a-value-object
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+      - name: Validate manifest
+        run: composer validate --strict
+      - name: Install
+        run: composer install --no-interaction --no-progress
+      - name: Lint
+        run: composer run lint
+      - name: Test
+        run: composer run test
+
+  python:
+    name: Python (pipeline-that-refuses)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: samples/python/pipeline-that-refuses
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e '.[test]'
+      - name: Compile
+        run: python -m py_compile geocode.py
+      - name: Test
+        run: python -m pytest -v
+
+  powershell:
+    name: PowerShell (ratchet-gate)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: samples/powershell/ratchet-gate
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Pester
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -RequiredVersion 5.6.1 -Scope CurrentUser -Force
+      - name: Test
+        run: |
+          Import-Module Pester -RequiredVersion 5.6.1
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'tests'
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
+
+  sql:
+    name: SQL (idempotent-migration)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16.4@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: samples/sql/idempotent-migration
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the migration against PostgreSQL
+        run: bash tests/test_migration.sh

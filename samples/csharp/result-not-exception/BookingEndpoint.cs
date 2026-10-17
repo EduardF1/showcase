@@ -1,4 +1,5 @@
 using Showcase.Results;
+using HttpResults = Microsoft.AspNetCore.Http.Results;
 
 namespace Showcase.Bookings;
 
@@ -55,15 +56,19 @@ public static class BookingEndpoint
         BookingRequest request, BookingService bookings, CancellationToken ct)
     {
         var result = await bookings.BookAsync(request, ct);
-        return result.Match(
-            booking => Results.Created($"/bookings/{booking.Id}", booking),
+        return ToHttpResult(result);
+    }
+
+    /// <summary>The mapping on its own, so a test can hand it a code the service never produces.</summary>
+    public static IResult ToHttpResult(Result<Booking> result) =>
+        result.Match(
+            booking => HttpResults.Created($"/bookings/{booking.Id}", booking),
             error => error.Code switch
             {
-                BookingService.VehicleUnavailable => Results.Conflict(new { error.Code, error.Message }),
-                BookingService.DatesInverted => Results.BadRequest(new { error.Code, error.Message }),
+                BookingService.VehicleUnavailable => HttpResults.Conflict(new { error.Code, error.Message }),
+                BookingService.DatesInverted => HttpResults.BadRequest(new { error.Code, error.Message }),
                 // A code nobody mapped is a bug in this switch, not a client error. Saying so is
                 // better than defaulting to 400 and blaming the caller for our omission.
-                _ => Results.Problem($"Unmapped booking error code: {error.Code}"),
+                _ => HttpResults.Problem($"Unmapped booking error code: {error.Code}"),
             });
-    }
 }

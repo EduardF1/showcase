@@ -33,9 +33,10 @@ WITH batch AS (
 )
 UPDATE payments p
 SET currency = a.currency
-FROM batch b
-         JOIN accounts a ON a.id = p.account_id
-WHERE p.id = b.id;
+FROM batch b,
+     accounts a
+WHERE p.id = b.id
+  AND a.id = p.account_id;
 
 -- 3. Rows whose account has no currency either. They are NOT defaulted; they are listed, so someone
 --    can decide. A migration that invents values to satisfy its own constraint has moved the
