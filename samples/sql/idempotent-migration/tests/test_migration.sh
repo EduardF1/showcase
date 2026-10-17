@@ -18,8 +18,6 @@ step2="$(step '-- 2.' '-- 3.')"
 step4="$(step '-- 4.' '')"
 # Step 4 goes through stdin, not -c: -c would wrap both statements in one transaction, and a
 # failing VALIDATE would then roll back the NOT VALID constraint it is meant to leave in place.
-# Step 4 goes through stdin, not -c: -c would wrap both statements in one transaction, and a
-# failing VALIDATE would then roll back the NOT VALID constraint it is meant to leave in place.
 
 sql() { psql -X -q -v ON_ERROR_STOP=1 -d "$db" -tA "$@"; }
 updated() { psql -X -v ON_ERROR_STOP=1 -d "$db" -c "$1" | sed -n 's/^UPDATE \([0-9]*\)$/\1/p'; }

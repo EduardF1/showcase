@@ -8,9 +8,12 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -18,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * Runs the read query against a real PostgreSQL schema, as the sample's README recommends: the
  * compiler cannot catch a renamed column in a SQL string, so this test is what does.
  *
- * Connection comes from the usual PG* environment variables, defaulting to postgres@localhost:5432.
+ * Connection comes from the usual PG* environment variables, defaulting to postgres@localhost:5432
+ * with no password (CI runs PostgreSQL with trust authentication).
  */
 class AccountSummaryQueryTest {
 
@@ -35,7 +39,7 @@ class AccountSummaryQueryTest {
         String url = "jdbc:postgresql://" + env("PGHOST", "localhost") + ":" + env("PGPORT", "5432")
                 + "/" + env("PGDATABASE", "postgres");
         String user = env("PGUSER", "postgres");
-        String password = env("PGPASSWORD", "postgres");
+        String password = env("PGPASSWORD", null);
 
         JdbcClient admin = JdbcClient.create(new DriverManagerDataSource(url, user, password));
         admin.sql("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE").update();
@@ -91,6 +95,25 @@ class AccountSummaryQueryTest {
 
         assertEquals(2, busy.transfersThisMonth());
         assertNotNull(busy.lastTransferAt());
+    }
+
+    @Test
+    void datesTheSummaryFromTheLatestTransferNotTheEarliest() {
+        AccountSummary busy = new AccountSummaryQuery(jdbc).forHolder(1).get(1);
+
+        // Transfer 1 is the newest of account 10 by construction (now(), against now() minus a
+        // second and last month). A MIN in place of the MAX would return transfer 3 instead.
+        Instant latest = createdAt(1);
+        assertEquals(latest, busy.lastTransferAt());
+        assertNotEquals(createdAt(3), busy.lastTransferAt());
+    }
+
+    private static Instant createdAt(long transferId) {
+        return jdbc.sql("SELECT created_at FROM transfers WHERE id = :id")
+                .param("id", transferId)
+                .query(Timestamp.class)
+                .single()
+                .toInstant();
     }
 
     @Test

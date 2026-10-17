@@ -56,7 +56,12 @@ public static class BookingEndpoint
         BookingRequest request, BookingService bookings, CancellationToken ct)
     {
         var result = await bookings.BookAsync(request, ct);
-        return result.Match(
+        return ToHttpResult(result);
+    }
+
+    /// <summary>The mapping on its own, so a test can hand it a code the service never produces.</summary>
+    public static IResult ToHttpResult(Result<Booking> result) =>
+        result.Match(
             booking => HttpResults.Created($"/bookings/{booking.Id}", booking),
             error => error.Code switch
             {
@@ -66,5 +71,4 @@ public static class BookingEndpoint
                 // better than defaulting to 400 and blaming the caller for our omission.
                 _ => HttpResults.Problem($"Unmapped booking error code: {error.Code}"),
             });
-    }
 }

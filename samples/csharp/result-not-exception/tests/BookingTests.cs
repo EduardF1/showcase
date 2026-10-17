@@ -116,6 +116,15 @@ public class BookingEndpointTests
         Assert.Equal(StatusCodes.Status400BadRequest, await StatusFor(new FakeBookingRepository(), -1));
 
     [Fact]
+    public void Maps_an_unmapped_error_code_to_a_500_problem()
+    {
+        var result = BookingEndpoint.ToHttpResult(Result<Booking>.Fail("not_in_the_switch", "Nobody mapped this."));
+
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ProblemHttpResult>(result);
+        Assert.Equal(StatusCodes.Status500InternalServerError, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [Fact]
     public async Task Lets_infrastructure_failure_reach_the_boundary_uncaught()
     {
         // No catch in the handler: the exception travels to the framework, which turns it into a 500.
