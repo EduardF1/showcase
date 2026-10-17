@@ -2,3 +2,11 @@ node_modules/
 dist/
 .DS_Store
 *.log
+bin/
+obj/
+target/
+vendor/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.phpunit.result.cache

@@ -1,0 +1,13 @@
+[project]
+name = "pipeline-that-refuses"
+version = "0.0.0"
+description = "A geocoding step that declines rather than guessing a coordinate."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest==8.3.3"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
